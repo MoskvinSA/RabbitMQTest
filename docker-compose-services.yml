@@ -1,0 +1,50 @@
+# This is file for testing docker conteiners on one system
+
+version: "3.9"
+services:
+
+  rabbitmq:
+    build: rabbitmq/
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: "user1"
+      RABBITMQ_DEFAULT_PASS: "0000"
+    ports:
+      - 5672:5672
+      - 15672:15672
+    networks:
+      my-app-net:
+        ipv4_address: 10.0.0.4
+
+  server:
+    image: sr
+    container_name: server
+    build: server/
+    command: python3 consumerSync.py -n c1 -t 100 -m confirmMannually -q queue1 -si 10.0.0.4 -u user1 -p 0000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - rabbitmq
+    networks:
+      my-app-net:
+        ipv4_address: 10.0.0.3
+
+  client:
+    image: cl
+    container_name: client
+    build: client/
+    command: python3 producerSync.py -n p1 -t 100 -m nosave -q queue1 -si 10.0.0.4 -u user1 -p 0000
+    depends_on:
+      - rabbitmq
+    networks:
+      my-app-net:
+        ipv4_address: 10.0.0.2
+
+networks:
+  my-app-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: 10.0.0.0/20
+        gateway: 10.0.0.1
